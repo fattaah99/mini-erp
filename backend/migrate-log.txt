@@ -1,0 +1,28 @@
+﻿node.exe : Loaded 
+Prisma config from 
+prisma.config.ts.
+At line:1 char:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo      
+        : NotSpecified: 
+(L    oaded Prisma 
+c...isma    
+.config.ts.:String) [   
+ ], RemoteException
+    + 
+FullyQualifiedError    
+Id : NativeCommandErr   
+ or
+ 
+
+Prisma schema loaded 
+from 
+prisma\schema.prisma.
+Datasource "db": PostgreSQL database "warehouse_db", schema "public" at "localhost:5432"
+

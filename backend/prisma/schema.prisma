@@ -1,14 +1,292 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
   output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────
+// USERS
+// ─────────────────────────────────────────
+model User {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String    @db.VarChar(100)
+  email     String    @unique @db.VarChar(255)
+  password  String    @db.VarChar(255)
+  role      String    @db.VarChar(50)
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  // relations
+  purchaseOrders PurchaseOrder[]
+  goodsReceipts  GoodsReceipt[]
+  salesOrders    SalesOrder[]
+  stockMovements StockMovement[]
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────
+// SUPPLIERS
+// ─────────────────────────────────────────
+model Supplier {
+  id           String    @id @default(uuid()) @db.Uuid
+  supplierCode String    @unique @map("supplier_code") @db.VarChar(30)
+  name         String    @db.VarChar(255)
+  phone        String?   @db.VarChar(50)
+  email        String?   @db.VarChar(255)
+  address      String?
+  isActive     Boolean   @default(true) @map("is_active")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  // relations
+  purchaseOrders PurchaseOrder[]
+
+  @@map("suppliers")
+}
+
+// ─────────────────────────────────────────
+// CUSTOMERS
+// ─────────────────────────────────────────
+model Customer {
+  id           String    @id @default(uuid()) @db.Uuid
+  customerCode String    @unique @map("customer_code") @db.VarChar(30)
+  name         String    @db.VarChar(255)
+  phone        String?   @db.VarChar(50)
+  email        String?   @db.VarChar(255)
+  address      String?
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  // relations
+  salesOrders SalesOrder[]
+
+  @@map("customers")
+}
+
+// ─────────────────────────────────────────
+// CATEGORIES
+// ─────────────────────────────────────────
+model Category {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String    @db.VarChar(100)
+  description String?
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  // relations
+  products Product[]
+
+  @@map("categories")
+}
+
+// ─────────────────────────────────────────
+// PRODUCTS
+// ─────────────────────────────────────────
+model Product {
+  id           String    @id @default(uuid()) @db.Uuid
+  categoryId   String    @map("category_id") @db.Uuid
+  sku          String    @unique @db.VarChar(50)
+  name         String    @db.VarChar(255)
+  unit         String    @db.VarChar(20)
+  purchasePrice Decimal  @map("purchase_price") @db.Decimal(18, 2)
+  sellingPrice  Decimal  @map("selling_price") @db.Decimal(18, 2)
+  minimumStock  Int      @map("minimum_stock")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  // relations
+  category           Category           @relation(fields: [categoryId], references: [id])
+  stock              Stock?
+  purchaseOrderItems PurchaseOrderItem[]
+  goodsReceiptItems  GoodsReceiptItem[]
+  salesOrderItems    SalesOrderItem[]
+  stockMovements     StockMovement[]
+
+  @@map("products")
+}
+
+// ─────────────────────────────────────────
+// STOCKS (1 product = 1 stock record)
+// ─────────────────────────────────────────
+model Stock {
+  id        String   @id @default(uuid()) @db.Uuid
+  productId String   @unique @map("product_id") @db.Uuid
+  quantity  Int      @default(0)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // relations
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("stocks")
+}
+
+// ─────────────────────────────────────────
+// PURCHASE ORDERS
+// ─────────────────────────────────────────
+model PurchaseOrder {
+  id         String   @id @default(uuid()) @db.Uuid
+  supplierId String   @map("supplier_id") @db.Uuid
+  poNumber   String   @unique @map("po_number") @db.VarChar(30)
+  poDate     DateTime @map("po_date") @db.Date
+  status     String   @db.VarChar(30)
+  remarks    String?
+  createdBy  String   @map("created_by") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // relations
+  supplier      Supplier           @relation(fields: [supplierId], references: [id])
+  creator       User               @relation(fields: [createdBy], references: [id])
+  items         PurchaseOrderItem[]
+  goodsReceipts GoodsReceipt[]
+
+  @@map("purchase_orders")
+}
+
+// ─────────────────────────────────────────
+// PURCHASE ORDER ITEMS
+// ─────────────────────────────────────────
+model PurchaseOrderItem {
+  id              String   @id @default(uuid()) @db.Uuid
+  purchaseOrderId String   @map("purchase_order_id") @db.Uuid
+  productId       String   @map("product_id") @db.Uuid
+  qty             Int
+  price           Decimal  @db.Decimal(18, 2)
+  subtotal        Decimal  @db.Decimal(18, 2)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // relations
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  product       Product       @relation(fields: [productId], references: [id])
+
+  @@map("purchase_order_items")
+}
+
+// ─────────────────────────────────────────
+// GOODS RECEIPTS
+// ─────────────────────────────────────────
+model GoodsReceipt {
+  id              String   @id @default(uuid()) @db.Uuid
+  purchaseOrderId String   @map("purchase_order_id") @db.Uuid
+  receiptNumber   String   @unique @map("receipt_number") @db.VarChar(30)
+  receiptDate     DateTime @map("receipt_date") @db.Date
+  receivedBy      String   @map("received_by") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // relations
+  purchaseOrder PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id])
+  receiver      User               @relation(fields: [receivedBy], references: [id])
+  items         GoodsReceiptItem[]
+
+  @@map("goods_receipts")
+}
+
+// ─────────────────────────────────────────
+// GOODS RECEIPT ITEMS
+// ─────────────────────────────────────────
+model GoodsReceiptItem {
+  id             String   @id @default(uuid()) @db.Uuid
+  goodsReceiptId String   @map("goods_receipt_id") @db.Uuid
+  productId      String   @map("product_id") @db.Uuid
+  qtyReceived    Int      @map("qty_received")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // relations
+  goodsReceipt GoodsReceipt @relation(fields: [goodsReceiptId], references: [id])
+  product      Product      @relation(fields: [productId], references: [id])
+
+  @@map("goods_receipt_items")
+}
+
+// ─────────────────────────────────────────
+// SALES ORDERS
+// ─────────────────────────────────────────
+model SalesOrder {
+  id          String   @id @default(uuid()) @db.Uuid
+  customerId  String   @map("customer_id") @db.Uuid
+  salesNumber String   @unique @map("sales_number") @db.VarChar(30)
+  salesDate   DateTime @map("sales_date") @db.Date
+  status      String   @db.VarChar(30)
+  totalAmount Decimal  @map("total_amount") @db.Decimal(18, 2)
+  createdBy   String   @map("created_by") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // relations
+  customer Customer         @relation(fields: [customerId], references: [id])
+  creator  User             @relation(fields: [createdBy], references: [id])
+  items    SalesOrderItem[]
+
+  @@map("sales_orders")
+}
+
+// ─────────────────────────────────────────
+// SALES ORDER ITEMS
+// ─────────────────────────────────────────
+model SalesOrderItem {
+  id           String   @id @default(uuid()) @db.Uuid
+  salesOrderId String   @map("sales_order_id") @db.Uuid
+  productId    String   @map("product_id") @db.Uuid
+  qty          Int
+  price        Decimal  @db.Decimal(18, 2)
+  subtotal     Decimal  @db.Decimal(18, 2)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // relations
+  salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id])
+  product    Product    @relation(fields: [productId], references: [id])
+
+  @@map("sales_order_items")
+}
+
+// ─────────────────────────────────────────
+// STOCK MOVEMENTS
+// ─────────────────────────────────────────
+model StockMovement {
+  id              String   @id @default(uuid()) @db.Uuid
+  productId       String   @map("product_id") @db.Uuid
+  transactionType String   @map("transaction_type") @db.VarChar(50)
+  referenceType   String   @map("reference_type") @db.VarChar(50)
+  referenceId     String   @map("reference_id") @db.Uuid
+  qtyIn           Int      @default(0) @map("qty_in")
+  qtyOut          Int      @default(0) @map("qty_out")
+  balanceAfter    Int      @map("balance_after")
+  movementDate    DateTime @map("movement_date")
+  createdBy       String   @map("created_by") @db.Uuid
+
+  // relations
+  product Product @relation(fields: [productId], references: [id])
+  creator User    @relation(fields: [createdBy], references: [id])
+
+  @@map("stock_movements")
 }
